@@ -52,33 +52,42 @@ class AlbumSearchDelegate extends SearchDelegate<Album?> {
     return StreamBuilder<List<Album>>(
       stream: albumViewModel.albumsStream,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+        switch (snapshot.connectionState) {
+          case ConnectionState.waiting:
+            return const Center(child: CircularProgressIndicator());
+
+          case ConnectionState.none:
+          case ConnectionState.active:
+          case ConnectionState.done:
+            if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            }
+
+            final albums = snapshot.data ?? [];
+            final filteredAlbums = _filterAlbums(albums);
+
+            switch (filteredAlbums.isEmpty) {
+              case true:
+                return const Center(child: Text('No results found'));
+
+              case false:
+                return ListView.builder(
+                  itemCount: filteredAlbums.length,
+                  itemBuilder: (context, index) {
+                    final album = filteredAlbums[index];
+                    return ListTile(
+                      title: Text(album.title),
+                      onTap: () {
+                        close(context, album);
+                      },
+                    );
+                  },
+                );
+            }
+
+          default:
+            return const Center(child: Text('Unexpected state'));
         }
-
-        if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        }
-
-        final albums = snapshot.data ?? [];
-        final filteredAlbums = _filterAlbums(albums);
-
-        if (filteredAlbums.isEmpty) {
-          return const Center(child: Text('No results found'));
-        }
-
-        return ListView.builder(
-          itemCount: filteredAlbums.length,
-          itemBuilder: (context, index) {
-            final album = filteredAlbums[index];
-            return ListTile(
-              title: Text(album.title),
-              onTap: () {
-                close(context, album);
-              },
-            );
-          },
-        );
       },
     );
   }
